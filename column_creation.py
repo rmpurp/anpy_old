@@ -50,6 +50,9 @@ class Column:
                           max_row=1 + NUM_BODY_ITEMS)
         return '=AVERAGE({})'.format(str(range))
 
+    def __str__(self):
+        return type(self).__name__
+
     @staticmethod
     def find_column_of_type(col_type):
         return [isinstance(c, col_type) for c in Column.col_order].index(True) + 1
@@ -58,6 +61,10 @@ class Column:
     def make_all(worksheet):
         for c in Column.col_order:
             c.make(worksheet)
+
+    @staticmethod
+    def get_column_strings():
+        return [str(c) for c in Column.col_order]
 
 class DateColumn(Column):
     def __init__(self, start_date=None):
@@ -167,7 +174,12 @@ class EfficiencyColumn(Column):
         template = '=SUMPRODUCT({0},{1}) / SUM({0})'
         return template.format(total_range, my_range)
 
-subjects = ['AP Euro', 'AP Bio', 'Band', 'Dab', 'dab2']
+DEFAULT_COLUMNS = [DateColumn,
+                   TimeStartedColumn,
+                   TimeEndedColumn,
+                   TimeTotalColumn,
+                   TimeWorkingColumn,
+                   EfficiencyColumn]
 
 def get_subjects(ws, num_titles):
     subjects = []
@@ -184,23 +196,25 @@ def get_most_recent_monday(date=None):
         date = datetime.date.today()
     return date - datetime.timedelta(days=date.weekday())
         
-def create_stat_columns():
-    DateColumn()
-    TimeStartedColumn()
-    TimeEndedColumn()
-    TimeTotalColumn()
-    TimeWorkingColumn()
-    EfficiencyColumn()
+def create_stat_columns(columns=None):
+    if not columns:
+        columns = DEFAULT_COLUMNS
+    for C in columns:
+        C()
 
 def create_subjects(subjects):
     for s in subjects:
         DataColumn(s)
 
-wb = Workbook()
-ws = wb.active
-
-create_stat_columns()
-create_subjects(subjects)
-Column.make_all(ws)
-
-wb.save('test.xlsx')
+if __name__ == '__main__':
+    wb = Workbook()
+    ws = wb.active
+    
+    subjects = ['AP Euro', 'AP Bio', 'Band', 'Dab', 'dab2']
+    
+    create_stat_columns()
+    create_subjects(subjects)
+    Column.make_all(ws)
+    print(Column.get_column_strings())
+    
+    wb.save('test.xlsx')
