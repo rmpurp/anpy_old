@@ -5,15 +5,16 @@ from openpyxl.utils import get_column_letter
 import itertools as it
 from openpyxl.worksheet.cell_range import CellRange
 
+NUM_BODY_ITEMS = 7
+
 class Column:
-    def __init__(self, column, title, num_body_items):
+    def __init__(self, column, title):
         self.title = title
         self.column = column
-        self.num_body_items = num_body_items
 
     def make(self, ws):
         ws.cell(row=1, column=self.column, value=self.title)
-        for row, item in enumerate(self._get_body(self.num_body_items), 2):
+        for row, item in enumerate(self._get_body(NUM_BODY_ITEMS), 2):
             cell = ws.cell(row=row, column=self.column, value=item)
             self._body_cell_op(cell)
         ws.cell(row=row + 1, column=self.column, value=self._get_footer())
@@ -34,15 +35,15 @@ class Column:
         range = CellRange(min_col=self.column,
                           max_col=self.column,
                           min_row=2,
-                          max_row=1 + self.num_body_items)
+                          max_row=1 + NUM_BODY_ITEMS)
         return '=AVERAGE({})'.format(str(range))
 
 class DateColumn(Column):
-    def __init__(self, column, num_body_items, start_date=None):
+    def __init__(self, column, start_date=None):
         if not start_date:
             start_date = get_most_recent_monday()
         self.start_date = start_date
-        super().__init__(column, 'Date', num_body_items)
+        super().__init__(column, 'Date')
 
     def _get_body_item(self, item_num):
         if item_num == 1:
@@ -57,9 +58,9 @@ class DateColumn(Column):
         return 'Averages:'
 
 class DefaultValueColumn(Column):
-    def __init__(self, column, title, default_value, num_body_items):
+    def __init__(self, column, title, default_value):
         self.default_value = default_value
-        super().__init__(column, title, num_body_items)
+        super().__init__(column, title)
 
     def _get_body_item(self, item_num):
         return self.default_value
@@ -69,10 +70,10 @@ class TimeColumn(DefaultValueColumn):
         return 'N/A'
 
 class TimeTotalColumn(Column):
-    def __init__(self, column, time_started_col, time_ended_col, num_body_items):
+    def __init__(self, column, time_started_col, time_ended_col):
         self.time_started_col = get_column_letter(time_started_col)
         self.time_ended_col = get_column_letter(time_ended_col)
-        super().__init__(column, 'Time Total (H)', num_body_items)
+        super().__init__(column, 'Time Total (H)')
 
     def _get_body_item(self, item_num):
         row = item_num + 1
@@ -82,10 +83,10 @@ class TimeTotalColumn(Column):
         return template.format(self.time_started_col, row, self.time_ended_col)
 
 class TimeWorkingColumn(Column):
-    def __init__(self, column, subject_start_col, num_subjects, num_body_items):
+    def __init__(self, column, subject_start_col, num_subjects):
         self.start_col_idx = subject_start_col
         self.end_col_idx = subject_start_col + num_subjects - 1
-        super().__init__(column, 'Time Working (H)', num_body_items)
+        super().__init__(column, 'Time Working (H)')
 
     def _get_body_item(self, item_num):
         row = item_num + 1
@@ -97,10 +98,10 @@ class TimeWorkingColumn(Column):
         return template.format(cell_range)
 
 class EfficiencyColumn(Column):
-    def __init__(self, column, time_total_col, time_working_col, num_body_items):
+    def __init__(self, column, time_total_col, time_working_col):
         self.time_total_col = time_total_col
         self.time_working_col = time_working_col
-        super().__init__(column, '% Efficiency', num_body_items) 
+        super().__init__(column, '% Efficiency') 
 
     def _get_body_item(self, item_num):
         row = item_num + 1
@@ -113,11 +114,11 @@ class EfficiencyColumn(Column):
         total_range = CellRange(min_col=self.time_total_col,
                                 max_col=self.time_total_col,
                                 min_row=2,
-                                max_row=self.num_body_items + 1)
+                                max_row=NUM_BODY_ITEMS + 1)
         my_range = CellRange(min_col=self.column,
                              max_col=self.column,
                              min_row=2,
-                             max_row=self.num_body_items + 1)
+                             max_row=NUM_BODY_ITEMS + 1)
         template = '=SUMPRODUCT({0},{1}) / SUM({0})'
         return template.format(total_range, my_range)
 
@@ -138,22 +139,22 @@ def get_most_recent_monday(date=None):
         date = datetime.date.today()
     return date - datetime.timedelta(days=date.weekday())
         
-def create_subject_columns(start_column, subject_names, num_entries, worksheet):
+def create_subject_columns(start_column, subject_names, worksheet):
     for column, name in enumerate(subject_names, start_column):
-        c = DefaultValueColumn(column, name, 0, num_entries)
+        c = DefaultValueColumn(column, name, 0)
         c.make(worksheet)
 
 def create_stat_columns(ws):
-    DateColumn(1, num_body_items=7).make(ws)
-    TimeColumn(2, 'Time Started', 'N/A', 7).make(ws)
-    TimeColumn(3, 'Time Ended', 'N/A', 7).make(ws)
-    TimeTotalColumn(4, 2, 3, 7).make(ws)
-    TimeWorkingColumn(5, subject_start_col=7, num_subjects=5, num_body_items=7).make(ws)
-    EfficiencyColumn(6, time_total_col=4, time_working_col=5, num_body_items=7).make(ws)
+    DateColumn(1).make(ws)
+    TimeColumn(2, 'Time Started', 'N/A').make(ws)
+    TimeColumn(3, 'Time Ended', 'N/A').make(ws)
+    TimeTotalColumn(4, 2, 3).make(ws)
+    TimeWorkingColumn(5, subject_start_col=7, num_subjects=5).make(ws)
+    EfficiencyColumn(6, time_total_col=4, time_working_col=5).make(ws)
 
 def make_worksheet(ws):
     create_stat_columns(ws)
-    create_subject_columns(7, subjects, 7, ws)
+    create_subject_columns(7, subjects, ws)
 
 wb = Workbook()
 ws = wb.active
