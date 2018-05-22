@@ -8,11 +8,23 @@ from openpyxl.worksheet.cell_range import CellRange
 NUM_BODY_ITEMS = 7
 
 class Column:
-    def __init__(self, column, title):
+    col_order = []
+
+    def __init__(self, title, dependencies=None):
         self.title = title
-        self.column = column
+        Column.col_order.append(self)
+        self.column = len(Column.col_order)
+        if not dependencies:
+            dependencies = []
+        self._dep = dict(zip(dependencies, it.repeat(-1)))
+
+    def _satisfy_dependencies(self):
+        for col_type in self._dep:
+            self._dep[col_type] = Column.find_column_of_type(col_type)
+
 
     def make(self, ws):
+        self._satisfy_dependencies()
         ws.cell(row=1, column=self.column, value=self.title)
         for row, item in enumerate(self._get_body(NUM_BODY_ITEMS), 2):
             cell = ws.cell(row=row, column=self.column, value=item)
@@ -38,12 +50,21 @@ class Column:
                           max_row=1 + NUM_BODY_ITEMS)
         return '=AVERAGE({})'.format(str(range))
 
+    @staticmethod
+    def find_column_of_type(col_type):
+        return [isinstance(c, col_type) for c in Column.col_order].index(True) + 1
+
+    @staticmethod
+    def make_all(worksheet):
+        for c in Column.col_order:
+            c.make(worksheet)
+
 class DateColumn(Column):
-    def __init__(self, column, start_date=None):
+    def __init__(self, start_date=None):
         if not start_date:
             start_date = get_most_recent_monday()
         self.start_date = start_date
-        super().__init__(column, 'Date')
+        super().__init__('Date')
 
     def _get_body_item(self, item_num):
         if item_num == 1:
@@ -58,61 +79,85 @@ class DateColumn(Column):
         return 'Averages:'
 
 class DefaultValueColumn(Column):
-    def __init__(self, column, title, default_value):
+    def __init__(self, title, default_value='N/A'):
         self.default_value = default_value
-        super().__init__(column, title)
+        super().__init__(title)
 
     def _get_body_item(self, item_num):
         return self.default_value
 
-class TimeColumn(DefaultValueColumn):
+class DataColumn(DefaultValueColumn):
+    def __init__(self, title):
+        super().__init__(title, default_value=0)
+
+class TimeStartedColumn(DefaultValueColumn):
+    def __init__(self):
+        super().__init__('Time Started')
+
+    def _get_footer(self):
+        return 'N/A'
+
+class TimeEndedColumn(DefaultValueColumn):
+    def __init__(self):
+        super().__init__('Time Ended')
+
     def _get_footer(self):
         return 'N/A'
 
 class TimeTotalColumn(Column):
-    def __init__(self, column, time_started_col, time_ended_col):
-        self.time_started_col = get_column_letter(time_started_col)
-        self.time_ended_col = get_column_letter(time_ended_col)
-        super().__init__(column, 'Time Total (H)')
+    def __init__(self):
+        dep = [TimeStartedColumn, TimeEndedColumn]
+        # self.time_started_col = get_column_letter(time_started_col)
+        # self.time_ended_col = get_column_letter(time_ended_col)
+        super().__init__('Time Total (H)', dependencies=dep)
 
     def _get_body_item(self, item_num):
         row = item_num + 1
+        time_started_col = get_column_letter(self._dep[TimeStartedColumn])
+        time_ended_col = get_column_letter(self._dep[TimeEndedColumn])
         template = '=IF({0}{1}="N/A","N/A",' \
                 + ' (MOD(24 + (60 * HOUR({2}{1}) - 60 * HOUR({0}{1})' \
                 + ' + MINUTE({2}{1}) - MINUTE({0}{1})) / 60, 24)))'
-        return template.format(self.time_started_col, row, self.time_ended_col)
+        return template.format(time_started_col, row, time_ended_col)
 
 class TimeWorkingColumn(Column):
-    def __init__(self, column, subject_start_col, num_subjects):
-        self.start_col_idx = subject_start_col
-        self.end_col_idx = subject_start_col + num_subjects - 1
-        super().__init__(column, 'Time Working (H)')
+    def __init__(self):
+        dep = [DataColumn]
+        super().__init__('Time Working (H)', dependencies=dep)
 
     def _get_body_item(self, item_num):
+        data_start_idx = self._dep[DataColumn]
+        data_end_idx = len(Column.col_order)
         row = item_num + 1
         template = '=IF(SUM({0})=0,"N/A",SUM({0})/60)'
-        cell_range = CellRange(min_col=self.start_col_idx,
-                          max_col=self.end_col_idx,
+        cell_range = CellRange(min_col=data_start_idx,
+                          max_col=data_end_idx,
                           min_row=row,
                           max_row=row)
         return template.format(cell_range)
 
 class EfficiencyColumn(Column):
-    def __init__(self, column, time_total_col, time_working_col):
-        self.time_total_col = time_total_col
-        self.time_working_col = time_working_col
-        super().__init__(column, '% Efficiency') 
+    def __init__(self):
+        #self.time_total_col = time_total_col
+        #self.time_working_col = time_working_col
+        dep = [TimeTotalColumn, TimeWorkingColumn]
+        super().__init__('% Efficiency', dependencies=dep)
 
     def _get_body_item(self, item_num):
         row = item_num + 1
+        time_total_col = self._dep[TimeTotalColumn]
+        time_working_col = self._dep[TimeWorkingColumn]
         template = '=IF({2}{1}="N/A","N/A",IFERROR({2}{1}/({0}{1}*0.75),0))'
-        return template.format(get_column_letter(self.time_total_col), 
+        return template.format(get_column_letter(time_total_col), 
                                row,
-                               get_column_letter(self.time_working_col))
+                               get_column_letter(time_working_col))
 
     def _get_footer(self):
-        total_range = CellRange(min_col=self.time_total_col,
-                                max_col=self.time_total_col,
+        time_total_col = self._dep[TimeTotalColumn]
+        time_working_col = self._dep[TimeWorkingColumn]
+ 
+        total_range = CellRange(min_col=time_total_col,
+                                max_col=time_total_col,
                                 min_row=2,
                                 max_row=NUM_BODY_ITEMS + 1)
         my_range = CellRange(min_col=self.column,
@@ -139,25 +184,23 @@ def get_most_recent_monday(date=None):
         date = datetime.date.today()
     return date - datetime.timedelta(days=date.weekday())
         
-def create_subject_columns(start_column, subject_names, worksheet):
-    for column, name in enumerate(subject_names, start_column):
-        c = DefaultValueColumn(column, name, 0)
-        c.make(worksheet)
+def create_stat_columns():
+    DateColumn()
+    TimeStartedColumn()
+    TimeEndedColumn()
+    TimeTotalColumn()
+    TimeWorkingColumn()
+    EfficiencyColumn()
 
-def create_stat_columns(ws):
-    DateColumn(1).make(ws)
-    TimeColumn(2, 'Time Started', 'N/A').make(ws)
-    TimeColumn(3, 'Time Ended', 'N/A').make(ws)
-    TimeTotalColumn(4, 2, 3).make(ws)
-    TimeWorkingColumn(5, subject_start_col=7, num_subjects=5).make(ws)
-    EfficiencyColumn(6, time_total_col=4, time_working_col=5).make(ws)
-
-def make_worksheet(ws):
-    create_stat_columns(ws)
-    create_subject_columns(7, subjects, ws)
+def create_subjects(subjects):
+    for s in subjects:
+        DataColumn(s)
 
 wb = Workbook()
 ws = wb.active
-make_worksheet(ws)
+
+create_stat_columns()
+create_subjects(subjects)
+Column.make_all(ws)
 
 wb.save('test.xlsx')
