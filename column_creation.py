@@ -4,6 +4,8 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 import itertools as it
 from openpyxl.worksheet.cell_range import CellRange
+from utils import get_most_recent_monday
+
 
 NUM_BODY_ITEMS = 7
 
@@ -191,11 +193,7 @@ def get_subjects(ws, num_titles):
         cell = ws.cell(row=1, column=index)
     return subjects
 
-def get_most_recent_monday(date=None):
-    if not date:
-        date = datetime.date.today()
-    return date - datetime.timedelta(days=date.weekday())
-        
+       
 def create_stat_columns(columns=None):
     if not columns:
         columns = DEFAULT_COLUMNS
