@@ -4,7 +4,7 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 import itertools as it
 from openpyxl.worksheet.cell_range import CellRange
-from utils import get_most_recent_monday
+from anpy_lib.utils import get_most_recent_monday
 
 
 NUM_BODY_ITEMS = 7

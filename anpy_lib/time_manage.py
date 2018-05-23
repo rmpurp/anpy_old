@@ -1,6 +1,7 @@
 import datetime as dt
-from utils import date_to_tuple
-from utils import time_to_tuple
+from anpy_lib.utils import date_to_tuple
+from anpy_lib.utils import time_to_tuple
+from typing import Optional
 
 class Manager:
     def __init__(time_start: dt.time,
@@ -26,6 +27,12 @@ class Manager:
         if timer_running:
             result.update(self.timer.prepare_json())
 
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
+
     @staticmethod
     def from_json(decoded):
         manager = Manager(decoded['time_start'],
@@ -37,27 +44,27 @@ class Manager:
         return manager
 
 class Timer:
-    def __init__(self, subject, timer_start: Optional[datetime.datetime]=None):
+    def __init__(self, subject, timer_start: Optional[dt.datetime]=None):
         self.subject = subject
         self.timer_start = timer_start
         self.timer_stop = None
 
     def start(self, time=None):
         if not time:
-            time = datetime.datetime.now()
+            time = dt.datetime.now()
         self.timer_start = time
 
     def stop(self, time=None):
         if not time:
-            time = datetime.datetime.now()
+            time = dt.datetime.now()
         self.timer_stop = time
 
     def get_seconds_elapsed(self, time_end=None):
         if not time_end:
-            time_end = timer_stop
+            time_end = self.timer_stop
         if not time_end:
-            time_end = datetime.datetime.now()
-        return (time_end - timer_start).seconds
+            time_end = dt.datetime.now()
+        return (time_end - self.timer_start).seconds
 
     def prepare_json(self):
         if self.timer_stop:
@@ -66,8 +73,13 @@ class Timer:
         vals = (self.subject, self.timer_start.timestamp())
         return dict(zip(keys, vals))
 
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
     @staticmethod
     def from_json(decoded):
         timer = Timer(decoded['current_subject'],
-                      datetime.datetime.fromtimestamp(decoded['timer_start']))
+                      dt.datetime.fromtimestamp(decoded['timer_start']))
         return timer

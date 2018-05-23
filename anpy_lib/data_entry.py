@@ -1,7 +1,7 @@
 import datetime
 from openpyxl import Workbook
 from openpyxl import load_workbook
-import column_creation
+from anpy_lib import column_creation
 
 class Datum:
     def __init__(self, date, value, column_class):

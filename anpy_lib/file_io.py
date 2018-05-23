@@ -7,8 +7,6 @@ JSON_FILE_NAME = 'data.json'
 TIMER_RUNNING = 0
 TIMER_STOPPED = 1
 
-
-
         
 
 def load_workbook(path):
