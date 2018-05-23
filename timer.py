@@ -36,7 +36,6 @@ class Manager:
             timer = Timer.from_json(decoded)
         return manager
 
-
 class Timer:
     def __init__(self, subject, timer_start: Optional[datetime.datetime]=None):
         self.subject = subject
@@ -72,6 +71,3 @@ class Timer:
         timer = Timer(decoded['current_subject'],
                       datetime.datetime.fromtimestamp(decoded['timer_start']))
         return timer
-
-
-
