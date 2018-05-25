@@ -30,20 +30,33 @@ if not worksheet_ready:
 def select_from_menu(items):
     for idx, item in enumerate(items):
         print(idx, item)
-    return int(input("Please choose a number."))
+    try:
+        result = int(input("Please choose a number.\n> "))
+    except ValueError:
+        print('Invalid')
+    while result < 0 or result >= len(items):
+        try:
+            result = int(input("Please choose a number.\n> "))
+        except ValueError:
+            pass
+        print('Invalid')
+    return result
 
 
 while True:
     if m.timer_running:
-        choice = select_from_menu(('stop', 'finish', 'cancel'))
+        print("Timer for {} is running".format(m.cur_subject))
+        choice = select_from_menu(('stop', 'finish', 'cancel', 'quit'))
         if choice == 0:
             m.stop_timer()
             m.export_to_json(JSON_PATH)
         if choice == 1:
             m.stop_timer()
             m.export_to_json(JSON_PATH)
-            m.write_data(ws)
+            m.write_data(ws, dt.time(10, 30))
             break
+        if choice == 3:
+            quit()
     else:
         choice = select_from_menu(m.subjects)
         m.start_timer(choice)

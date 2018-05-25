@@ -25,6 +25,8 @@ def get_relevant_worksheet(workbook, date=None):
         workbook.create_sheet(title=reference_date)
         status = not WORKSHEET_CREATED
 
+    if TEMP_SHEET_NAME in workbook.sheetnames:
+        del workbook[TEMP_SHEET_NAME]
     return status, workbook[reference_date]
 
 

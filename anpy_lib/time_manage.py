@@ -40,13 +40,20 @@ class Manager:
             result.update(self.timer.prepare_json())
         return result
 
+    @property
+    def cur_subject(self):
+        if self.timer_running:
+            return self.subjects[self.timer.subject_idx]
+        return None
+
     def write_data(self, ws, end_time=None):
         if not end_time:
             end_time = datetime_to_time(dt.datetime.now())
         data_entry.add_data(ws, self.date, self.session_start,
-                            'TimeStartedColumn', self.columns)
+                            'TimeStartedColumn', self.columns,
+                            'h:mm AM/PM')
         data_entry.add_data(ws, self.date, end_time, 'TimeEndedColumn',
-                            self.columns)
+                            self.columns, 'h:mm AM/PM')
         data_entry.add_list(ws, self.date, self.time_records, self.columns)
 
     def start_timer(self, sub_idx, timer_start: Optional[dt.datetime] = None):

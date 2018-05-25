@@ -41,10 +41,12 @@ def get_row(ws, date, columns):
     return start_row + date_difference
 
 
-def add_data(ws, date, value, column_name, columns):
+def add_data(ws, date, value, column_name, columns, cell_format=None):
     row = get_row(ws, date, columns)
     col = get_col(column_name, columns)
-    ws.cell(row=row, column=col, value=value)
+    cell = ws.cell(row=row, column=col, value=value)
+    if cell_format:
+        cell.number_format = cell_format
 
 
 def add_list(ws, date, values, columns):

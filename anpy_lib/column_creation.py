@@ -121,6 +121,9 @@ class DataColumn(DefaultValueColumn):
     def __init__(self, title):
         super().__init__(title, default_value=0)
 
+    def _body_cell_op(self, cell):
+        cell.number_format = '0'
+
 
 class TimeStartedColumn(DefaultValueColumn):
     def __init__(self):
@@ -154,6 +157,9 @@ class TimeTotalColumn(Column):
             + ' + MINUTE({2}{1}) - MINUTE({0}{1})) / 60, 24)))'
         return template.format(time_started_col, row, time_ended_col)
 
+    def _body_cell_op(self, cell):
+        cell.number_format = '0.0'
+
 
 class TimeWorkingColumn(Column):
     def __init__(self):
@@ -170,6 +176,9 @@ class TimeWorkingColumn(Column):
                                min_row=row,
                                max_row=row)
         return template.format(cell_range)
+
+    def _body_cell_op(self, cell):
+        cell.number_format = '0.0'
 
 
 class EfficiencyColumn(Column):
@@ -199,6 +208,9 @@ class EfficiencyColumn(Column):
                              max_row=NUM_BODY_ITEMS + 1)
         template = '=SUMPRODUCT({0},{1}) / SUM({0})'
         return template.format(total_range, my_range)
+
+    def _body_cell_op(self, cell):
+        cell.number_format = '0.0%'
 
 
 DEFAULT_COLUMNS = [DateColumn,
