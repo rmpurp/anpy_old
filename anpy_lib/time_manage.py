@@ -1,7 +1,10 @@
 import datetime as dt
 from anpy_lib.utils import date_to_tuple
 from anpy_lib.utils import time_to_tuple
+from anpy_lib.utils import datetime_to_time
+from anpy_lib import data_entry
 from typing import Optional
+import json
 
 
 class Manager:
@@ -9,9 +12,11 @@ class Manager:
                  session_start: dt.time,
                  date: dt.date,
                  subjects,
+                 columns,
                  time_records=None):
         self.subjects = list(subjects)
         self.date = date
+        self.columns = columns
         if not time_records:
             self.time_records = [0] * len(subjects)
         else:
@@ -21,19 +26,36 @@ class Manager:
         self.timer = None
 
     def prepare_json(self):
-        keys = ('session_start', 'date', 'subjects',
+        keys = ('session_start', 'date', 'subjects', 'columns',
                 'time_records', 'timer_running')
         timer_running = bool(self.timer)
-        values = (time_to_tuple(self.session_start), date_to_tuple(self.date),
-                  self.subjects, self.time_records, timer_running)
+        values = (time_to_tuple(self.session_start),
+                  date_to_tuple(self.date),
+                  self.subjects,
+                  self.columns,
+                  self.time_records,
+                  timer_running)
         result = dict(zip(keys, values))
         if timer_running:
             result.update(self.timer.prepare_json())
         return result
 
+    def write_data(self, ws, end_time=None):
+        if not end_time:
+            end_time = datetime_to_time(dt.datetime.now())
+        data_entry.add_data(ws, self.date, self.session_start,
+                            'TimeStartedColumn', self.columns)
+        data_entry.add_data(ws, self.date, end_time, 'TimeEndedColumn',
+                            self.columns)
+        data_entry.add_list(ws, self.date, self.time_records, self.columns)
+
     def start_timer(self, sub_idx, timer_start: Optional[dt.datetime] = None):
         assert not self.timer, "Timer has already started"
         self.timer = Timer(sub_idx, timer_start)
+
+    @property
+    def timer_running(self):
+        return bool(self.timer)
 
     def stop_timer(self, time=None):
         assert self.timer, "Timer has not been started"
@@ -46,11 +68,16 @@ class Manager:
             return self.__dict__ == other.__dict__
         return False
 
+    def export_to_json(self, path):
+        f = open(path, 'w')
+        json.dump(self.prepare_json(), f)
+
     @staticmethod
     def from_json(decoded):
         manager = Manager(dt.time(*decoded['session_start']),
                           dt.date(*decoded['date']),
                           list(decoded['subjects']),
+                          list(decoded['columns']),
                           list(decoded['time_records']))
         if decoded['timer_running']:
             manager.timer = Timer.from_json(decoded)

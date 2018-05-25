@@ -38,7 +38,7 @@ class TestManager(unittest.TestCase):
         session_start = dt.time(14, 24)
         date = dt.date(2017, 4, 21)
         subjects = 'test1 test2 test3'.split(' ')
-        m = time_manage.Manager(session_start, date, subjects)
+        m = time_manage.Manager(session_start, date, subjects, ['DateColumn'])
         self.assertEqual(m.time_records, [0, 0, 0])
 
         start_time = dt.datetime(2017, 4, 21, 14, 25, 10)
@@ -57,12 +57,13 @@ class TestManager(unittest.TestCase):
 
     def test_manager_json(self):
         json_str = '{"session_start": [15, 41], "date": [2014, 12, 4],' \
-            + '"subjects": ["suba", "subb"], "time_records": [12, 14],' \
+            + '"subjects": ["suba", "subb"], "columns": ["DateColumn"],' \
+            + '"time_records": [12, 14],' \
             + '"timer_running": true, "current_sub_idx": 1,' \
             + '"timer_start": 1415763004}'
         m = time_manage.Manager.from_json(json.loads(json_str))
         m2 = time_manage.Manager(dt.time(15, 41), dt.date(2014, 12, 4),
-                                 ['suba', 'subb'], [12, 14])
+                                 ['suba', 'subb'], ['DateColumn'], [12, 14])
         m2.start_timer(1, dt.datetime.fromtimestamp(1415763004))
         self.assertEqual(m, m2)
 
@@ -71,11 +72,15 @@ class TestManager(unittest.TestCase):
             json_str = json.dumps(manager.prepare_json())
             decoded = json.loads(json_str)
             self.assertEqual(manager, time_manage.Manager.from_json(decoded))
-        m = time_manage.Manager(dt.time(21, 20), dt.date(2008, 5, 2),
+        m = time_manage.Manager(dt.time(21, 20),
+                                dt.date(2008, 5, 2),
                                 ['banana', 'apple', 'dessert'],
+                                ['DateColumn'],
                                 [3, 4, 5])
-        m2 = time_manage.Manager(dt.time(21, 20), dt.date(2008, 5, 2),
+        m2 = time_manage.Manager(dt.time(21, 20),
+                                 dt.date(2008, 5, 2),
                                  ['banana', 'apple', 'dessert'],
+                                 ['DateColumn'],
                                  [3, 4, 5])
         check_consistent(m)
         m.start_timer(2)
