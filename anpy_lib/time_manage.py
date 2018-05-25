@@ -5,28 +5,41 @@ from typing import Optional
 
 
 class Manager:
-    def __init__(time_start: dt.time,
+    def __init__(self,
+                 session_start: dt.time,
                  date: dt.date,
                  subjects,
                  time_records=None):
-        self.subjects = subjects
+        self.subjects = list(subjects)
+        self.date = date
         if not time_records:
             self.time_records = [0] * len(subjects)
         else:
             assert len(time_records) == len(subjects)
             self.time_records = time_records
-        self.time_start = time_start
+        self.session_start = session_start
         self.timer = None
 
     def prepare_json(self):
-        keys = ('time_start', 'date', 'subjects',
+        keys = ('session_start', 'date', 'subjects',
                 'time_records', 'timer_running')
-        timer_running = self.timer is not None
-        values = (time_to_tuple(time_start), date_to_tuple(date), subjects,
-                  time_records, timer_running)
+        timer_running = bool(self.timer)
+        values = (time_to_tuple(self.session_start), date_to_tuple(self.date),
+                  self.subjects, self.time_records, timer_running)
         result = dict(zip(keys, values))
         if timer_running:
             result.update(self.timer.prepare_json())
+        return result
+
+    def start_timer(self, sub_idx, timer_start: Optional[dt.datetime] = None):
+        assert not self.timer, "Timer has already started"
+        self.timer = Timer(sub_idx, timer_start)
+
+    def stop_timer(self, time=None):
+        assert self.timer, "Timer has not been started"
+        time_elapsed = self.timer.get_seconds_elapsed(time)
+        self.time_records[self.timer.subject_idx] = time_elapsed / 60
+        self.timer = None
 
     def __eq__(self, other):
         if isinstance(self, other.__class__):
@@ -35,29 +48,31 @@ class Manager:
 
     @staticmethod
     def from_json(decoded):
-        manager = Manager(decoded['time_start'],
-                          decoded['date'],
-                          decoded['subjects'],
-                          decoded['time_records'])
+        manager = Manager(dt.time(*decoded['session_start']),
+                          dt.date(*decoded['date']),
+                          list(decoded['subjects']),
+                          list(decoded['time_records']))
         if decoded['timer_running']:
-            timer = Timer.from_json(decoded)
+            manager.timer = Timer.from_json(decoded)
         return manager
 
 
 class Timer:
-    def __init__(self, subject, timer_start: Optional[dt.datetime]=None):
-        self.subject = subject
-        self.timer_start = timer_start
+    def __init__(self, subject_idx, timer_start: Optional[dt.datetime] = None):
+        self.subject_idx = subject_idx
+        self.start(timer_start)
         self.timer_stop = None
 
     def start(self, time=None):
         if not time:
             time = dt.datetime.now()
+        assert time is not None
         self.timer_start = time
 
     def stop(self, time=None):
         if not time:
             time = dt.datetime.now()
+        assert time is not None
         self.timer_stop = time
 
     def get_seconds_elapsed(self, time_end=None):
@@ -70,8 +85,8 @@ class Timer:
     def prepare_json(self):
         if self.timer_stop:
             return dict()
-        keys = ('current_subject', 'timer_start')
-        vals = (self.subject, self.timer_start.timestamp())
+        keys = ('current_sub_idx', 'timer_start')
+        vals = (self.subject_idx, self.timer_start.timestamp())
         return dict(zip(keys, vals))
 
     def __eq__(self, other):
@@ -81,6 +96,6 @@ class Timer:
 
     @staticmethod
     def from_json(decoded):
-        timer = Timer(decoded['current_subject'],
+        timer = Timer(decoded['current_sub_idx'],
                       dt.datetime.fromtimestamp(decoded['timer_start']))
         return timer
