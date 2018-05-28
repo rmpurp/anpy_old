@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 import itertools as it
@@ -232,11 +234,14 @@ def get_subjects(ws, num_titles):
     return subjects
 
 
-def create_stat_columns(columns=None):
+def create_stat_columns(columns=None, date=None):
     if not columns:
         columns = DEFAULT_COLUMNS
     for C in columns:
-        C()
+        if C == DateColumn:
+            C(date)
+        else:
+            C()
 
 
 def create_subjects(subjects):

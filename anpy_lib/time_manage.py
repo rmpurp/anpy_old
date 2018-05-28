@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import datetime as dt
 from anpy_lib.utils import date_to_tuple
 from anpy_lib.utils import time_to_tuple
@@ -24,6 +26,13 @@ class Manager:
             self.time_records = time_records
         self.session_start = session_start
         self.timer = None
+
+    def __repr__(self):
+        return 'Manager({}, {}, {}, {}, {})'.format(repr(self.session_start),
+                                                    repr(self.date),
+                                                    repr(self.subjects),
+                                                    repr(self.columns),
+                                                    repr(self.time_records))
 
     def prepare_json(self):
         keys = ('session_start', 'date', 'subjects', 'columns',
@@ -80,13 +89,30 @@ class Manager:
         json.dump(self.prepare_json(), f)
 
     @staticmethod
-    def from_json(decoded):
-        manager = Manager(dt.time(*decoded['session_start']),
-                          dt.date(*decoded['date']),
-                          list(decoded['subjects']),
-                          list(decoded['columns']),
-                          list(decoded['time_records']))
-        if decoded['timer_running']:
+    def from_json(decoded, date=None, session_start=None):
+        assert date or not(session_start)
+        check_for_timer = False
+
+        columns = list(decoded['columns'])
+        subjects = list(decoded['subjects'])
+        decoded_date = dt.date(*decoded['date'])
+
+        if not date or date == decoded_date:
+            session_start = dt.time(*decoded['session_start'])
+            time_records = list(decoded['time_records'])
+            date = decoded_date
+            check_for_timer = True
+
+        else:
+            time_records = [0] * len(subjects)
+
+        manager = Manager(session_start,
+                          date,
+                          subjects,
+                          columns,
+                          time_records)
+
+        if check_for_timer and decoded['timer_running']:
             manager.timer = Timer.from_json(decoded)
         return manager
 
@@ -127,6 +153,10 @@ class Timer:
         if isinstance(self, other.__class__):
             return self.__dict__ == other.__dict__
         return False
+
+    def __repr__(self):
+        return 'Timer({}, {})'.format(repr(self.subject_idx),
+                                      repr(self.timer_start))
 
     @staticmethod
     def from_json(decoded):

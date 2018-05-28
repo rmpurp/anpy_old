@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import datetime
 from openpyxl import Workbook
 from anpy_lib import column_creation
@@ -37,6 +39,8 @@ def get_row(ws, date, columns):
     start_row = 2
     date_column = get_col_from_class(columns, column_creation.DateColumn)
     base_date = ws.cell(row=start_row, column=date_column).value
+    if isinstance(base_date, datetime.datetime):
+        base_date = base_date.date()
     date_difference = (date - base_date).days
     return start_row + date_difference
 
